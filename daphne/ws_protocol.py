@@ -147,6 +147,7 @@ class WebSocketProtocol(WebSocketServerProtocol):
                 self.channel_layer.send("websocket.receive", {
                     "reply_channel": self.reply_channel,
                     "path": self.unquote(self.path),
+                    "headers": self.clean_headers,
                     "order": self.packets_received,
                     "bytes": payload,
                 })
@@ -154,6 +155,7 @@ class WebSocketProtocol(WebSocketServerProtocol):
                 self.channel_layer.send("websocket.receive", {
                     "reply_channel": self.reply_channel,
                     "path": self.unquote(self.path),
+                    "headers": self.clean_headers,
                     "order": self.packets_received,
                     "text": payload.decode("utf8"),
                 })
@@ -214,6 +216,7 @@ class WebSocketProtocol(WebSocketServerProtocol):
                         "reply_channel": self.reply_channel,
                         "code": code,
                         "path": self.unquote(self.path),
+                        "headers": self.clean_headers,
                         "order": self.packets_received + 1,
                     })
             except self.channel_layer.ChannelFull:

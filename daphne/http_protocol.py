@@ -80,12 +80,16 @@ class WebRequest(http.Request):
                 self.client_addr = None
                 self.server_addr = None
 
+            self.client_scheme = 'https' if self.isSecure() else 'http'
+
             if self.factory.proxy_forwarded_address_header:
-                self.client_addr = parse_x_forwarded_for(
+                self.client_addr, self.client_scheme = parse_x_forwarded_for(
                     self.requestHeaders,
                     self.factory.proxy_forwarded_address_header,
                     self.factory.proxy_forwarded_port_header,
-                    self.client_addr
+                    self.factory.proxy_forwarded_proto_header,
+                    self.client_addr,
+                    self.client_scheme
                 )
 
             # Check for unicodeish path (or it'll crash when trying to parse)
@@ -166,7 +170,7 @@ class WebRequest(http.Request):
                         "method": self.method.decode("ascii"),
                         "path": self.unquote(self.path),
                         "root_path": self.root_path,
-                        "scheme": "https" if self.isSecure() else "http",
+                        "scheme": self.client_scheme,
                         "query_string": self.query_string,
                         "headers": self.clean_headers,
                         "body": self.content.read(),
@@ -309,7 +313,7 @@ class HTTPFactory(http.HTTPFactory):
     routed appropriately.
     """
 
-    def __init__(self, channel_layer, action_logger=None, send_channel=None, timeout=120, websocket_timeout=86400, ping_interval=20, ping_timeout=30, ws_protocols=None, root_path="", websocket_connect_timeout=30, proxy_forwarded_address_header=None, proxy_forwarded_port_header=None, websocket_handshake_timeout=5):
+    def __init__(self, channel_layer, action_logger=None, send_channel=None, timeout=120, websocket_timeout=86400, ping_interval=20, ping_timeout=30, ws_protocols=None, root_path="", websocket_connect_timeout=30, proxy_forwarded_address_header=None, proxy_forwarded_port_header=None, proxy_forwarded_proto_header=None, websocket_handshake_timeout=5):
         http.HTTPFactory.__init__(self)
         self.channel_layer = channel_layer
         self.action_logger = action_logger
@@ -321,6 +325,7 @@ class HTTPFactory(http.HTTPFactory):
         self.ping_interval = ping_interval
         self.proxy_forwarded_address_header = proxy_forwarded_address_header
         self.proxy_forwarded_port_header = proxy_forwarded_port_header
+        self.proxy_forwarded_proto_header = proxy_forwarded_proto_header
         # We track all sub-protocols for response channel mapping
         self.reply_protocols = {}
         # Make a factory for WebSocket protocols

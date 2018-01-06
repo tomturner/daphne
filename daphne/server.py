@@ -36,6 +36,7 @@ class Server(object):
         root_path="",
         proxy_forwarded_address_header=None,
         proxy_forwarded_port_header=None,
+        proxy_forwarded_proto_header=None,
         force_sync=False,
         verbosity=1,
         websocket_handshake_timeout=5
@@ -66,6 +67,7 @@ class Server(object):
         self.ping_timeout = ping_timeout
         self.proxy_forwarded_address_header = proxy_forwarded_address_header
         self.proxy_forwarded_port_header = proxy_forwarded_port_header
+        self.proxy_forwarded_proto_header = proxy_forwarded_proto_header
         # If they did not provide a websocket timeout, default it to the
         # channel layer's group_expiry value if present, or one day if not.
         self.websocket_timeout = websocket_timeout or getattr(channel_layer, "group_expiry", 86400)
@@ -95,6 +97,7 @@ class Server(object):
             root_path=self.root_path,
             proxy_forwarded_address_header=self.proxy_forwarded_address_header,
             proxy_forwarded_port_header=self.proxy_forwarded_port_header,
+            proxy_forwarded_proto_header=self.proxy_forwarded_proto_header,
             websocket_handshake_timeout=self.websocket_handshake_timeout
         )
         if self.verbosity <= 1:
@@ -121,9 +124,18 @@ class Server(object):
             logger.info("Listening on endpoint %s" % socket_description)
             # Twisted requires str on python2 (not unicode) and str on python3 (not bytes)
             ep = serverFromString(reactor, str(socket_description))
-            self.listeners.append(ep.listen(self.factory))
+            listener = ep.listen(self.factory)
+            listener.addErrback(self.on_listener_error)
+            self.listeners.append(listener)
 
         reactor.run(installSignalHandlers=self.signal_handlers)
+
+    def on_listener_error(self, failure):
+        """
+        Callback function used to process interface listener errors.
+        """
+
+        logger.error(failure.getErrorMessage())
 
     def backend_reader_sync(self):
         """
